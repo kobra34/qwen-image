@@ -1,34 +1,32 @@
-# RunPod Serverless Dockerfile for Qwen-Image
 FROM runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
 
-# Set working directory
 WORKDIR /workspace
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# 1. Ubuntu 24.04'ün "externally-managed-environment" hatasını kesin olarak devre dışı bırakır
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
+# 2. Sistem araçlarını kur ve pip'i en son sürüme yükselt
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 RUN python3 -m pip install --upgrade pip
 
-RUN python3 -m pip install git+https://github.com/huggingface/diffusers
-RUN python3 -m pip install transformers accelerate safetensors
-RUN python3 -m pip install hf-transfer
+# 3. TÜM kütüphaneleri TEK BİR komutla ve önbellek kullanmadan kurar
+# (Bu, satır satır hata vermeyi ve bağımlılık çakışmalarını önler)
+RUN python3 -m pip install --no-cache-dir \
+    "git+https://github.com/huggingface/diffusers" \
+    transformers \
+    accelerate \
+    safetensors \
+    hf-transfer \
+    pillow \
+    runpod
 
-RUN python3 -m pip install pillow
-
-RUN python3 -m pip install runpod
-
-RUN python3 -m pip cache purge
-
-# Copy handler
+# 4. Handler dosyasını kopyala
 COPY handler.py /workspace/handler.py
 
-# Point HuggingFace cache to network volume (persistent 100GB storage)
-# Model downloads ONCE to volume, then ALL workers share it
+# 5. HuggingFace önbelleğini kalıcı depolama alanına yönlendir
 ENV HF_HOME=/runpod-volume
 ENV TRANSFORMERS_CACHE=/runpod-volume
 ENV HF_HUB_CACHE=/runpod-volume
 
-# RunPod will execute this
+# 6. Başlatma komutu
 CMD ["python3", "-u", "handler.py"]
