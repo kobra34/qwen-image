@@ -1,5 +1,5 @@
-# 1. Sunucudaki CUDA 12.4 sürücüsüyle BİREBİR eşleşen temel imaj
-FROM runpod/pytorch:2.5.1-py3.11-cuda12.4.1-devel-ubuntu22.04
+# Docker Hub'da kesinlikle var olan, kararlı RunPod imajı
+FROM runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04
 
 WORKDIR /workspace
 
@@ -14,9 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN python3 -m pip install --upgrade pip
 
-# 2. KRİTİK: Qwen-Image-2512, PyPI'daki kararlı sürümlerde YOKTUR. 
-# Hugging Face'in en son (main) branch'inden çekmek ZORUNLUDUR.
-# Sıralama önemlidir: önce temel kütüphaneler, sonra diffusers/transformers
+# Qwen-Image-2512 uyumluluğu için Hugging Face kütüphanelerini 
+# doğrudan en güncel GitHub kaynaklarından çekiyoruz (PyPI sürümleri yetersiz kalıyor)
 RUN python3 -m pip install --no-cache-dir \
     runpod \
     pillow \
