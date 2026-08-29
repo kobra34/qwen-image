@@ -17,7 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m pip install --upgrade pip
+# RUN python3 -m pip install --upgrade pip
+RUN python3 -m pip install --no-cache-dir runpod pillow safetensors diffusers[torch]
 
 # CRITICAL FIX: diffusers kütüphanesini git yerine kararlı PyPI sürümü [torch] ekiyle kuruyoruz.
 # Qwen-Image uyumluluğu için diğer gerekli kütüphaneler güncel kalmaya devam ediyor.
