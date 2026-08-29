@@ -1,48 +1,66 @@
 import runpod
 import torch
 import sys
+import os
 
 print("🟢 1. ADIM: Script başladı.")
 
-try:
-    from diffusers import DiffusionPipeline
-    print("🟢 2. ADIM: Diffusers başarıyla import edildi.")
-except Exception as e:
-    print(f"🔴 HATA: Diffusers import edilemedi! {e}")
-    sys.exit(1)
-
+# Global pipeline değişkeni (İlk istek geldiğinde doldurulacak)
+pipe = None
 MODEL_ID = "Qwen/Qwen-Image-2512"
-print(f"🟢 3. ADIM: {MODEL_ID} modeli yükleniyor (İlk seferde 3-5 dk sürebilir)...")
 
-try:
-    pipe = DiffusionPipeline.from_pretrained(
-        MODEL_ID,
-        torch_dtype=torch.bfloat16,
-        cache_dir="/runpod-volume",
-        trust_remote_code=True
-    ).to("cuda")
-    print("🟢 4. ADIM: Model başarıyla GPU'ya yüklendi! ✅")
-except Exception as e:
-    print(f"🔴 HATA: Model yüklenirken çöktü! {e}")
-    sys.exit(1)
+def load_model():
+    global pipe
+    if pipe is None:
+        print(f"🟢 [Lazy Load] {MODEL_ID} modeli yükleniyor... Bu işlem ilk istekte birkaç dakika sürebilir.")
+        try:
+            # Qwen-Image için özelleştirilmiş Pipeline import ediliyor
+            from diffusers import QwenImagePipeline
+            
+            pipe = QwenImagePipeline.from_pretrained(
+                MODEL_ID,
+                torch_dtype=torch.bfloat16,
+                cache_dir="/runpod-volume",
+                device_map="auto" # VRAM optimizasyonu için otomatik yerleşim
+            )
+            print("🟢 Model başarıyla belleğe ve GPU'ya yüklendi! ✅")
+        except Exception as e:
+            print(f"🔴 HATA: Model yüklenirken çöktü! Detay: {e}")
+            raise e
+    return pipe
 
 def handler(job):
-    print(f"🟢 5. ADIM: İstek işleniyor...")
+    print("🟢 İstek alındı, model durumu kontrol ediliyor...")
     try:
-        result = pipe(
-            prompt=job['input'].get('prompt', 'a highly detailed cat, 4k, masterpiece'),
-            negative_prompt=" ",
-            width=1024,
-            height=1024,
-            num_inference_steps=25,
-            true_cfg_scale=4.0,
-            generator=torch.Generator(device="cuda").manual_seed(42)
+        # Modeli güvenli bir şekilde fonksiyon içinde ayağa kaldırıyoruz
+        model = load_model()
+        
+        input_data = job['input']
+        prompt = input_data.get('prompt', 'a highly detailed cat, 4k, masterpiece')
+        
+        print(f"🟢 Görsel üretiliyor. Prompt: {prompt}")
+        
+        # Qwen-Image-2512 için resmi önerilen parametreler
+        result = model(
+            prompt=prompt,
+            negative_prompt=input_data.get('negative_prompt', ''),
+            width=input_data.get('width', 1024),
+            height=input_data.get('height', 1024),
+            num_inference_steps=input_data.get('steps', 50), # Resmi önerilen adım: 50
+            true_cfg_scale=4.0
         )
-        result.images[0].save("/tmp/output.png")
-        return {"status": "success", "output_path": "/tmp/output.png"}
+        
+        output_path = "/tmp/output.png"
+        result.images[0].save(output_path)
+        
+        print("🟢 Görsel başarıyla kaydedildi.")
+        return {"status": "success", "output_path": output_path}
+        
     except Exception as e:
-        return {"error": str(e)}
+        print(f"🔴 Handler içinde hata oluştu: {str(e)}")
+        return {"status": "error", "error": str(e)}
 
 if __name__ == "__main__":
-    print("🟢 6. ADIM: Runpod serverless başlatılıyor...")
+    print("🟢 Runpod serverless başlatılıyor... (Model ilk istek geldiğinde arka planda güvenle indirilecek)")
+    # Sistem anında ayağa kalkacak, RunPod 60 saniye aşımından dolayı kapatmayacak
     runpod.serverless.start({"handler": handler})
