@@ -6,8 +6,9 @@ WORKDIR /workspace
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 # ENV HF_HUB_ENABLE_HF_TRANSFER=1
 ENV HF_XET_HIGH_PERFORMANCE=1
+ENV HF_XET_HIGH_PERFORMANCE=1
 
-
+ENV SCALING_THRESHOLD_BUFFER_MS=120000
 
 # Sistem araçlarını kur
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -33,5 +34,6 @@ COPY handler.py /workspace/handler.py
 ENV HF_HOME=/runpod-volume
 ENV TRANSFORMERS_CACHE=/runpod-volume
 ENV HF_HUB_CACHE=/runpod-volume
+ENV PYTHONWARNINGS="ignore::FutureWarning:huggingface_hub.constants"
 
 CMD ["python3", "-u", "handler.py"]
