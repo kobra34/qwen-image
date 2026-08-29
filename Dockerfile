@@ -1,5 +1,5 @@
-# Docker Hub'da kesin olarak bulunan ve CUDA 11.8 içeren resmi RunPod imajı
-FROM runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04
+# Sunucunuzun sürücüsüyle (12080) tam uyumlu, içinde PyTorch hazır gelen resmi imaj
+FROM runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04
 
 WORKDIR /workspace
 
@@ -17,8 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Eksik olan tüm kütüphanelerin (transformers dahil) kurulumu
-RUN python3 -m pip install --no-cache-dir runpod pillow safetensors diffusers[torch] transformers accelerate torchvision
+# CRITICAL FIX: [torch] ekini kaldırdık. 
+# Böylece pip, imajın içindeki orijinal ve çalışan PyTorch'u silip yerine uyumsuz olanı kurmayacak.
+RUN python3 -m pip install --no-cache-dir runpod pillow safetensors diffusers transformers accelerate
 
 COPY handler.py /workspace/handler.py
 
