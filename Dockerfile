@@ -4,7 +4,10 @@ FROM runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04
 WORKDIR /workspace
 
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
-ENV HF_HUB_ENABLE_HF_TRANSFER=1
+# ENV HF_HUB_ENABLE_HF_TRANSFER=1
+ENV HF_XET_HIGH_PERFORMANCE=1
+
+
 
 # Sistem araçlarını kur
 RUN apt-get update && apt-get install -y --no-install-recommends \
