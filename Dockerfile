@@ -1,5 +1,5 @@
-# Docker Hub'da kesinlikle var olan, kararlı RunPod imajı
-FROM runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04
+# CUDA 11.8 tabanlı, RunPod sürücüleriyle tam uyumlu kararlı imaj
+FROM runpod/pytorch:2.2.0-py3.10-cuda11.8.0-devel-ubuntu22.04
 
 WORKDIR /workspace
 
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Temiz ve hatasız pip kurulum satırı
+# Temiz ve hatasız kütüphane kurulumu
 RUN python3 -m pip install --no-cache-dir runpod pillow safetensors diffusers[torch]
 
 COPY handler.py /workspace/handler.py
