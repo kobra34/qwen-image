@@ -3,11 +3,13 @@ import types
 import torch
 
 # --- CRITICAL FIX: MONKEY PATCH (XPU HATASINI KÖKTEN ÇÖZER) ---
-# diffusers ve transformers kütüphanelerinin torch.xpu arayarak çökmesini engeller.
 if not hasattr(torch, "xpu"):
     xpu_mock = types.ModuleType("xpu")
     xpu_mock.is_available = lambda: False
     xpu_mock.empty_cache = lambda: None
+    xpu_mock.device_count = lambda: 0
+    xpu_mock.current_device = lambda: 0
+    xpu_mock.get_device_name = lambda *args, **kwargs: "xpu-mock"
     torch.xpu = xpu_mock
     sys.modules["torch.xpu"] = xpu_mock
 # -------------------------------------------------------------
@@ -24,13 +26,11 @@ def load_model():
         print(f"🟢 [Lazy Load] {MODEL_ID} modeli yükleniyor...")
         try:
             from diffusers import QwenImagePipeline
-            
             pipe = QwenImagePipeline.from_pretrained(
                 MODEL_ID,
                 torch_dtype=torch.bfloat16,
                 cache_dir="/runpod-volume"
             ).to("cuda")
-            
             print("🟢 Model başarıyla belleğe ve GPU'ya yüklendi! ✅")
         except Exception as e:
             print(f"🔴 HATA: Model yüklenirken çöktü! Detay: {e}")
@@ -43,9 +43,7 @@ def handler(job):
         model = load_model()
         input_data = job['input']
         prompt = input_data.get('prompt', 'a highly detailed cat, 4k, masterpiece')
-        
         print(f"🟢 Görsel üretiliyor. Prompt: {prompt}")
-        
         result = model(
             prompt=prompt,
             negative_prompt=input_data.get('negative_prompt', ''),
@@ -54,13 +52,13 @@ def handler(job):
             num_inference_steps=input_data.get('steps', 50),
             true_cfg_scale=4.0
         )
-        
         output_path = "/tmp/output.png"
-        result.images.save(output_path)
-        
+        if hasattr(result, "images") and isinstance(result.images, list):
+            result.images[0].save(output_path)
+        else:
+            result.images.save(output_path)
         print("🟢 Görsel başarıyla kaydedildi.")
         return {"status": "success", "output_path": output_path}
-        
     except Exception as e:
         print(f"🔴 Handler içinde hata oluştu: {str(e)}")
         return {"status": "error", "error": str(e)}
