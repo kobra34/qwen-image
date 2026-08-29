@@ -17,8 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Temiz ve hatasız pip kurulum satırı
-RUN python3 -m pip install --no-cache-dir runpod pillow safetensors diffusers[torch]
+# Eksik olan tüm kütüphanelerin (transformers dahil) kurulumu
+RUN python3 -m pip install --no-cache-dir runpod pillow safetensors diffusers[torch] transformers accelerate torchvision
 
 COPY handler.py /workspace/handler.py
 
