@@ -1,24 +1,30 @@
-import runpod
-import torch
 import sys
-import os
+import types
+import torch
 
-print("🟢 1. ADIM: Script başladı.")
+# --- CRITICAL FIX: MONKEY PATCH (XPU HATASINI KÖKTEN ÇÖZER) ---
+# diffusers ve transformers kütüphanelerinin torch.xpu arayarak çökmesini engeller.
+if not hasattr(torch, "xpu"):
+    xpu_mock = types.ModuleType("xpu")
+    xpu_mock.is_available = lambda: False
+    xpu_mock.empty_cache = lambda: None
+    torch.xpu = xpu_mock
+    sys.modules["torch.xpu"] = xpu_mock
+# -------------------------------------------------------------
 
-# Global pipeline değişkeni
+import runpod
+print("🟢 1. ADIM: Script başladı ve XPU yaması uygulandı.")
+
 pipe = None
 MODEL_ID = "Qwen/Qwen-Image-2512"
 
 def load_model():
     global pipe
     if pipe is None:
-        print(f"🟢 [Lazy Load] {MODEL_ID} modeli yükleniyor... Bu işlem ilk istekte birkaç dakika sürebilir.")
+        print(f"🟢 [Lazy Load] {MODEL_ID} modeli yükleniyor...")
         try:
-            # Qwen-Image için özelleştirilmiş Pipeline import ediliyor
             from diffusers import QwenImagePipeline
             
-            # CRITICAL FIX: device_map="auto" yerine modeli doğrudan CUDA (GPU) üzerine yüklüyoruz.
-            # Bu sayede torch'un olmayan 'xpu' özniteliğini araması engellenir.
             pipe = QwenImagePipeline.from_pretrained(
                 MODEL_ID,
                 torch_dtype=torch.bfloat16,
@@ -34,15 +40,12 @@ def load_model():
 def handler(job):
     print("🟢 İstek alındı, model durumu kontrol ediliyor...")
     try:
-        # Modeli güvenli bir şekilde fonksiyon içinde ayağa kaldırıyoruz
         model = load_model()
-        
         input_data = job['input']
         prompt = input_data.get('prompt', 'a highly detailed cat, 4k, masterpiece')
         
         print(f"🟢 Görsel üretiliyor. Prompt: {prompt}")
         
-        # Qwen-Image-2512 parametreleri
         result = model(
             prompt=prompt,
             negative_prompt=input_data.get('negative_prompt', ''),
@@ -53,14 +56,7 @@ def handler(job):
         )
         
         output_path = "/tmp/output.png"
-        
-        # diffusers çıktı formatı uyumluluğu için düzeltme
-        if hasattr(result, "images") and isinstance(result.images, list):
-            result.images[0].save(output_path)
-        elif hasattr(result, "images"):
-            result.images.save(output_path)
-        else:
-            raise Exception("Pipeline çıktısında 'images' bulunamadı.")
+        result.images.save(output_path)
         
         print("🟢 Görsel başarıyla kaydedildi.")
         return {"status": "success", "output_path": output_path}
@@ -70,5 +66,5 @@ def handler(job):
         return {"status": "error", "error": str(e)}
 
 if __name__ == "__main__":
-    print("🟢 Runpod serverless başlatılıyor... (Model ilk istek geldiğinde arka planda güvenle indirilecek)")
+    print("🟢 Runpod serverless başlatılıyor...")
     runpod.serverless.start({"handler": handler})
