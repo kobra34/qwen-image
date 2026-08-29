@@ -17,21 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# RUN python3 -m pip install --upgrade pip
-# Önbellek tetikleyici yorum satırı
+# Temiz ve hatasız pip kurulum satırı
 RUN python3 -m pip install --no-cache-dir runpod pillow safetensors diffusers[torch]
-
-
-# CRITICAL FIX: diffusers kütüphanesini git yerine kararlı PyPI sürümü [torch] ekiyle kuruyoruz.
-# Qwen-Image uyumluluğu için diğer gerekli kütüphaneler güncel kalmaya devam ediyor.
-RUN python3 -m pip install --no-cache-dir \
-    runpod \
-    pillow \
-    safetensors \
-    diffusers[torch] \
-    git+https://github.com \
-    git+https://github.com \
-    git+https://github.com
 
 COPY handler.py /workspace/handler.py
 
