@@ -2,35 +2,34 @@ FROM runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
 
 WORKDIR /workspace
 
-# 1. Ubuntu 24.04'ün pip kısıtlamasını kaldır ve hf-transfer'ı aktif et
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 ENV HF_HUB_ENABLE_HF_TRANSFER=1
 
-# 2. TEK BİR ADIMDA: Sistem araçlarını kur, pip'i güncelle ve TÜM kütüphaneleri yükle.
-# Bu zincirleme yapı, "git bulunamadı" veya "build araçları eksik" hatalarını %100 önler.
+# ADIM 1: Sadece sistem araçlarını kurar. (Burada hata verirse internet/apt sorunu vardır)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git \
-        build-essential \
-        python3-dev \
-    && rm -rf /var/lib/apt/lists/* \
-    && python3 -m pip install --upgrade pip \
-    && python3 -m pip install --no-cache-dir \
-        "git+https://github.com/huggingface/diffusers" \
-        transformers \
-        accelerate \
-        safetensors \
-        huggingface_hub \
-        hf-transfer \
-        pillow \
-        runpod
+    git \
+    build-essential \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# 3. Handler dosyasını kopyala
+# ADIM 2: Sadece pip'i günceller
+RUN python3 -m pip install --upgrade pip
+
+# ADIM 3: Standart kütüphaneleri kurar (runpod dahil)
+RUN python3 -m pip install --no-cache-dir \
+    transformers \
+    accelerate \
+    safetensors \
+    huggingface_hub \
+    hf-transfer \
+    pillow \
+    runpod
+
+# ADIM 4: En son ve bazen bağlantı sorunu yaratabilen diffusers'ı ayrı kurar
+RUN python3 -m pip install --no-cache-dir "git+https://github.com/huggingface/diffusers"
+
 COPY handler.py /workspace/handler.py
 
-# 4. HuggingFace önbelleğini kalıcı depolama alanına yönlendir
 ENV HF_HOME=/runpod-volume
 ENV TRANSFORMERS_CACHE=/runpod-volume
-ENV HF_HUB_CACHE=/runpod-volume
-
-# 5. Başlatma komutu
-CMD ["python3", "-u", "handler.py"]
+ENV HF_HUB_CACHE=/runpod
