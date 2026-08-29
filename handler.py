@@ -1,43 +1,54 @@
 import runpod
 import torch
 import os
-from diffusers import DiffusionPipeline
 
-# 1. MODEL BİLGİLERİ
-# ÖNEMLİ: Buraya Hugging Face'deki modelin TAM ve DOĞRU adını yazmalısın.
-# Eğer model adı yanlışsa, aşağıdaki hata tam olarak bu yüzden terjadi.
-# Örnek: "Qwen/Qwen-Image" veya "black-forest-labs/FLUX.1-schnell" vb.
-MODEL_ID = "Qwen/Qwen-Image"  # <-- BURAYI KONTROL ET VE DOĞRU MODEL ADINI YAZ
+# Qwen-Image için özel olarak geliştirilmiş pipeline sınıfını kullanıyoruz
+try:
+    from diffusers import QwenImagePipeline
+except ImportError:
+    # Eğer sürüm çok yeniyse ve doğrudan import edilemiyorsa fallback
+    from diffusers import DiffusionPipeline as QwenImagePipeline
 
-print(f"🚀 {MODEL_ID} modeli yükleniyor, lütfen bekleyin (bu işlem ilk seferde uzun sürebilir)...")
+MODEL_ID = "Qwen/Qwen-Image"
+
+print(f"🚀 {MODEL_ID} modeli yükleniyor (bu işlem ilk seferde 2-5 dakika sürebilir)...")
 
 try:
-    # trust_remote_code=True, özel model mimarilerinin çalışması için ZORUNLUDUR
-    pipe = DiffusionPipeline.from_pretrained(
+    # Qwen-Image resmi dokümantasyonuna göre bfloat16 kullanmalıdır
+    pipe = QwenImagePipeline.from_pretrained(
         MODEL_ID,
-        torch_dtype=torch.float16,
+        torch_dtype=torch.bfloat16, 
         cache_dir="/runpod-volume",
-        use_safetensors=True,
-        trust_remote_code=True  # <-- KRİTİK EKLEME
+        trust_remote_code=True # Özel model mimarisi için zorunlu
     ).to("cuda")
     print("✅ Model başarıyla yüklendi ve GPU'ya taşındı!")
     
 except Exception as e:
-    print(f"❌ Model yüklenirken KRİTİK hata oluştu: {str(e)}")
+    print(f"❌ Model yüklenirken KRİTİK hata: {str(e)}")
     raise e
 
-# 2. RUNPOD HANDLER FONKSİYONU
 def handler(job):
     try:
         job_input = job.get("input", {})
-        prompt = job_input.get("prompt", "a beautiful landscape, highly detailed, 4k resolution")
-        print(f"🎨 Görsel oluşturuluyor. Prompt: {prompt}")
+        prompt = job_input.get("prompt", "A beautiful landscape, highly detailed, 4k resolution")
         
-        # Görsel oluşturma
+        # Qwen-Image için resmi dokümantasyonda önerilen negative prompt tek bir boşluktur
+        negative_prompt = " "
+        
+        # Qwen-Image için önerilen "sihirli" eklenti (kaliteyi artırır)
+        enhanced_prompt = prompt + ", Ultra HD, 4K, cinematic composition."
+        
+        print(f"🎨 Görsel oluşturuluyor. Prompt: {enhanced_prompt}")
+        
+        # Qwen-Image'e özgü parametrelerle görsel üretimi
         result = pipe(
-            prompt=prompt,
-            num_inference_steps=20, # Gerekirse ayarlanabilir
-            guidance_scale=7.5      # Gerekirse ayarlanabilir
+            prompt=enhanced_prompt,
+            negative_prompt=negative_prompt,
+            width=1024,
+            height=1024,
+            num_inference_steps=30,      # Test için 30 adım yeterli ve hızlıdır
+            true_cfg_scale=4.0,          # Qwen-Image için önerilen değer
+            generator=torch.Generator(device="cuda").manual_seed(42)
         )
         
         image = result.images[0]
@@ -52,9 +63,8 @@ def handler(job):
         }
         
     except Exception as e:
-        print(f"❌ Görsel oluşturma (handler) sırasında hata: {str(e)}")
+        print(f"❌ Görsel oluşturma sırasında hata: {str(e)}")
         return {"error": str(e)}
 
-# 3. SUNUCUYU BAŞLAT
 if __name__ == "__main__":
     runpod.serverless.start({"handler": handler})
