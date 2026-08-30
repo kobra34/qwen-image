@@ -3,15 +3,20 @@ import types
 import torch
 
 # --- CRITICAL FIX: MONKEY PATCH (XPU HATASINI KÖKTEN ÇÖZER) ---
+class FakeXPU(types.ModuleType):
+    def __getattr__(self, name):
+        # Hangi fonksiyon çağrılırsa çağrılsın, güvenli bir sahte cevap döner
+        if name in ("is_available",):
+            return lambda *a, **kw: False
+        if name in ("device_count",):
+            return lambda *a, **kw: 0
+        # Diğer her şey için zararsız bir fonksiyon döndür
+        return lambda *a, **kw: None
+
 if not hasattr(torch, "xpu"):
-    xpu_mock = types.ModuleType("xpu")
-    xpu_mock.is_available = lambda: False
-    xpu_mock.empty_cache = lambda: None
-    xpu_mock.device_count = lambda: 0
-    xpu_mock.current_device = lambda: 0
-    xpu_mock.get_device_name = lambda *args, **kwargs: "xpu-mock"
-    torch.xpu = xpu_mock
-    sys.modules["torch.xpu"] = xpu_mock
+    fake = FakeXPU("xpu")
+    torch.xpu = fake
+    sys.modules["torch.xpu"] = fake
 # -------------------------------------------------------------
 
 import runpod
