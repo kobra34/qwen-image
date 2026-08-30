@@ -1,3 +1,10 @@
+import os
+print("🔍 Kök dizin:", os.listdir("/"))
+if os.path.exists("/runpod-volume"):
+    print("🔍 /runpod-volume içeriği:", os.listdir("/runpod-volume"))
+if os.path.exists("/workspace"):
+    print("🔍 /workspace içeriği:", os.listdir("/workspace"))
+    
 import sys
 import types
 import torch
