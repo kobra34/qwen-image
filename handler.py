@@ -1,15 +1,8 @@
-# -----------KENDİ DİSKİN
-import os
-print("🔍 Kök dizin:", os.listdir("/"))
-if os.path.exists("/runpod-volume"):
-    print("🔍 /runpod-volume içeriği:", os.listdir("/runpod-volume"))
-if os.path.exists("/workspace"):
-    print("🔍 /workspace içeriği:", os.listdir("/workspace"))
-    
 import sys
 import types
 import torch
 
+# --- CRITICAL FIX: MONKEY PATCH (XPU HATASINI KÖKTEN ÇÖZER) ---
 class FakeXPU(types.ModuleType):
     def __getattr__(self, name):
         if name in ("is_available",):
@@ -22,12 +15,20 @@ if not hasattr(torch, "xpu"):
     fake = FakeXPU("xpu")
     torch.xpu = fake
     sys.modules["torch.xpu"] = fake
+# -------------------------------------------------------------
 
 import runpod
 import os
 
+# -----------KENDİ DİSKİN (DEBUG)
+print("🔍 Kök dizin:", os.listdir("/"))
+if os.path.exists("/runpod-volume"):
+    print("🔍 /runpod-volume içeriği:", os.listdir("/runpod-volume"))
+if os.path.exists("/workspace"):
+    print("🔍 /workspace içeriği:", os.listdir("/workspace"))
+# -------------------------------------------------------------
+
 pipe = None
-# Serverless'ta volume nereye bağlıysa oraya bakacak şekilde iki yolu da dener
 MODEL_PATH = "/runpod-volume/qwen-image-2512" if os.path.exists("/runpod-volume/qwen-image-2512") else "/workspace/qwen-image-2512"
 
 def load_model():
@@ -43,10 +44,12 @@ def load_model():
     return pipe
 
 def handler(job):
+    print("🟢 İstek alındı, model durumu kontrol ediliyor...")
     try:
         model = load_model()
         input_data = job['input']
         prompt = input_data.get('prompt', 'a highly detailed cat, 4k, masterpiece')
+        print(f"🟢 Görsel üretiliyor. Prompt: {prompt}")
         result = model(
             prompt=prompt,
             negative_prompt=input_data.get('negative_prompt', ''),
@@ -60,10 +63,12 @@ def handler(job):
             result.images[0].save(output_path)
         else:
             result.images.save(output_path)
+        print("🟢 Görsel başarıyla kaydedildi.")
         return {"status": "success", "output_path": output_path}
     except Exception as e:
         print(f"🔴 HATA: {str(e)}")
         return {"status": "error", "error": str(e)}
 
 if __name__ == "__main__":
+    print("🟢 Runpod serverless başlatılıyor...")
     runpod.serverless.start({"handler": handler})
