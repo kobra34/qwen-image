@@ -1,28 +1,20 @@
 FROM runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04
-
 WORKDIR /workspace
-
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
-ENV HF_HOME=/runpod-volume
-ENV TRANSFORMERS_CACHE=/runpod-volume
-ENV HF_HUB_CACHE=/runpod-volume
+ENV HF_XET_HIGH_PERFORMANCE=1
+ENV SCALING_THRESHOLD_BUFFER_MS=120000
+ENV SCALING_MIN_QUEUE_TIME_MS=40000
+ENV PYTHONWARNINGS="ignore::FutureWarning:huggingface_hub.constants"
 
-# 1. torchvision ve torchaudio'yu TAMAMEN KALDIR
-#    Bu, circular import hatasını kökünden çözer
-RUN pip uninstall -y torchvision torchaudio 2>/dev/null || true
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# 2. Sadece gerekli kütüphaneleri kur
-#    xformers YOK (versiyon çakışması yaratıyor)
-#    torchvision YOK (circular import yaratıyor)
-RUN pip install --no-cache-dir \
-    "transformers>=4.48.0" \
-    "diffusers>=0.31.0" \
-    accelerate \
-    safetensors \
-    pillow \
-    runpod \
-    huggingface_hub \
-    qwen-vl-utils
+RUN python3 -m pip install --no-cache-dir --upgrade torch torchvision --index-url https://download.pytorch.org/whl/cu121
+RUN python3 -m pip uninstall -y torchaudio
+
+RUN python3 -m pip install --no-cache-dir runpod pillow safetensors diffusers transformers accelerate
 
 COPY handler.py /workspace/handler.py
 
