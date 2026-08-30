@@ -1,3 +1,4 @@
+# -----------KENDİ DİSKİN
 import os
 print("🔍 Kök dizin:", os.listdir("/"))
 if os.path.exists("/runpod-volume"):
