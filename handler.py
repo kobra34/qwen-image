@@ -1,6 +1,7 @@
 import sys
 import types
 import torch
+import traceback
 
 class FakeXPU(types.ModuleType):
     def __getattr__(self, name):
@@ -26,12 +27,17 @@ def load_model():
     global pipe
     if pipe is None:
         print(f"🟢 Model yolu: {MODEL_PATH}")
-        from diffusers import QwenImagePipeline
-        pipe = QwenImagePipeline.from_pretrained(
-            MODEL_PATH,
-            torch_dtype=torch.bfloat16
-        ).to("cuda")
-        print("🟢 Model başarıyla yüklendi! ✅")
+        try:
+            from diffusers import QwenImagePipeline
+            pipe = QwenImagePipeline.from_pretrained(
+                MODEL_PATH,
+                torch_dtype=torch.bfloat16
+            ).to("cuda")
+            print("🟢 Model başarıyla yüklendi! ✅")
+        except Exception as e:
+            print("🔴 TAM HATA:")
+            print(traceback.format_exc())
+            raise e
     return pipe
 
 def handler(job):
