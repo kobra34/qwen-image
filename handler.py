@@ -2,6 +2,7 @@ import sys
 import types
 import torch
 import traceback
+import base64
 
 class FakeXPU(types.ModuleType):
     def __getattr__(self, name):
@@ -20,7 +21,6 @@ import runpod
 import os
 
 MODEL_PATH = "/runpod-volume/qwen-image-2512"
-
 pipe = None
 
 def load_model():
@@ -61,7 +61,11 @@ def handler(job):
         else:
             result.images.save(output_path)
         print("🟢 Görsel kaydedildi.")
-        return {"status": "success", "output_path": output_path}
+
+        with open(output_path, "rb") as f:
+            img_base64 = base64.b64encode(f.read()).decode("utf-8")
+
+        return {"status": "success", "image_base64": img_base64}
     except Exception as e:
         print(f"🔴 HATA: {str(e)}")
         return {"status": "error", "error": str(e)}
