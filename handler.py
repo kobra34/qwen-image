@@ -32,7 +32,8 @@ def load_model():
             pipe = QwenImagePipeline.from_pretrained(
                 MODEL_PATH,
                 torch_dtype=torch.bfloat16
-            ).to("cuda")
+            )
+            pipe.enable_model_cpu_offload()
             print("🟢 Model başarıyla yüklendi! ✅")
         except Exception as e:
             print("🔴 TAM HATA:")
