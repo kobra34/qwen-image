@@ -12,9 +12,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m pip install --no-cache-dir --upgrade torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
 RUN python3 -m pip uninstall -y torchaudio
 
-RUN python3 -m pip install --no-cache-dir runpod pillow safetensors diffusers transformers accelerate
+# RUN python3 -m pip install --no-cache-dir runpod pillow safetensors diffusers transformers accelerate
+RUN python3 -m pip install --no-cache-dir runpod pillow safetensors transformers accelerate
+RUN python3 -m pip install --no-cache-dir git+https://github.com/huggingface/diffusers.git
 
 COPY handler.py /workspace/handler.py
 
